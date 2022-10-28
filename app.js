@@ -2,8 +2,14 @@ const express = require('express');
 const morgan = require('morgan');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const axios = require('axios');
+const {
+  authenticate,
+  login,
+  authenticateViaToken,
+} = require('./auth.controller');
 require('dotenv').config();
 const app = express();
+app.use(express.json());
 
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
 
@@ -17,7 +23,7 @@ app.use(morgan('dev'));
 
 /**
  * Middleware 1
- * Set the response headers for Access control. 
+ * Set the response headers for Access control.
  */
 app.use(function (req, res, next) {
   // Website you wish to allow to connect
@@ -49,26 +55,19 @@ app.use(function (req, res, next) {
  * Return OK status without validating the authorization token
  */
 app.options('/*', (_, res) => {
-  res.sendStatus(200);
+  return res.sendStatus(200);
 });
 
-/**
- * Middleware 3
- * Check if the authorization header is present else send unauthorized response
- */
-app.use('', (req, res, next) => {
-  if (req.headers.authorization) {
-    next();
-  } else {
-    res.status(403).send('Authorization header is not present in the request.');
-  }
-});
+//============== Middleware and endpoints =========================
+
+app.post('/login', login);
 
 /**
  * Actual Middleware logic that intercepts the APIs starting with /myTeamsApi and re-writing the URL, request and response headers
  */
 app.use(
   '/myTeamsApi',
+  authenticateViaToken,
   createProxyMiddleware({
     target: BASE_URL,
     changeOrigin: true,
@@ -78,17 +77,22 @@ app.use(
       [`^/myTeamsApi`]: '',
     },
     onProxyReq: (proxyReq, req, res) => {
-      proxyReq.setHeader('Cookie', getcookieValue(proxyReq));
+      proxyReq.setHeader('Cookie', req.authCookie);
     },
     onProxyRes: (proxyRes, req, res) => {
       proxyRes.headers['access-control-allow-origin'] = '*';
+      if(proxyRes.statusCode == 302 && proxyRes.headers.location?.toLocaleLowerCase()?.includes("myteam/saml")){ 
+        // the case where the request is being transferred to identity provider for re-login, we have to return unauthorized response
+        proxyRes.statusCode = 401;
+        proxyRes.statusMessage = "Unauthorized";
+      }
     },
   })
 );
 
 // ======= Testing methods ================================
 
-app.get('/masterdata', async (req, res, next) => {
+app.get('/masterdata', authenticate, async (req, res, next) => {
   try {
     let apiResponse = await axios.get(`${BASE_URL}/getMasterData`, {
       headers: getRequestHeaders(req),
@@ -104,26 +108,19 @@ app.get('/masterdata', async (req, res, next) => {
   }
 });
 
-app.get('/info', (req, res, next) => {
-  console.log(req.headers);
+app.get('/info', authenticateViaToken, (req, res, next) => {
+  console.log(req.authToken);
   res.send('This is a proxy server for calling the backend APIs');
 });
 
 // =============== End Testing Methods =============================
 
-
-
 //=============== Helper Methods ==================================
 
 const getRequestHeaders = (req) => {
   return {
-    Cookie: getcookieValue(req),
+    Cookie: req.authCookie,
   };
-};
-const getcookieValue = (req) => {
-  const authCookie =
-    req?.headers?.authorization || req.getHeader?.('authorization');
-  return authCookie;
 };
 
 //============== End Helper Methods ========================================
