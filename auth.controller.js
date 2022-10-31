@@ -9,7 +9,7 @@ const createAuthToken = (tokensObj) => {
     },
     JWT_SECRET,
     {
-      expiresIn: '2h',
+      expiresIn: '24h',
     }
   );
 };
