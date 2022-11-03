@@ -78,6 +78,7 @@ app.use(
     },
     onProxyReq: (proxyReq, req, res) => {
       proxyReq.setHeader('Cookie', req.authCookie);
+      proxyReq.setHeader('X-XSRF-TOKEN',req.xsrfToken);
     },
     onProxyRes: (proxyRes, req, res) => {
       proxyRes.headers['access-control-allow-origin'] = '*';

@@ -57,6 +57,7 @@ const authenticateViaToken = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.authCookie = prepareCookieFromTokens(decoded);
+    req.xsrfToken = decoded["XSRF_TOKEN"];
   } catch (err) {
     console.error(err);
     return res.status(401).send(err.message);
