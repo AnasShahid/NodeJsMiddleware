@@ -48,8 +48,7 @@ const authenticate = (req, res, next) => {
 };
 
 const authenticateViaToken = (req, res, next) => {
-  const token =
-    req.body.token || req.query.token || req.headers['x-access-token'] || req.headers.authorization;
+  const token = req.headers['x-access-token'] || req.headers.authorization;
 
   if (!token) {
     return res.status(403).send('Authorization token not found');

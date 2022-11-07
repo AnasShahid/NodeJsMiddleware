@@ -9,7 +9,6 @@ const {
 } = require('./auth.controller');
 require('dotenv').config();
 const app = express();
-app.use(express.json());
 
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
 
@@ -60,7 +59,6 @@ app.options('/*', (_, res) => {
 
 //============== Middleware and endpoints =========================
 
-app.post('/login', login);
 
 /**
  * Actual Middleware logic that intercepts the APIs starting with /myTeamsApi and re-writing the URL, request and response headers
@@ -90,6 +88,10 @@ app.use(
     },
   })
 );
+
+app.use(express.json());
+
+app.post('/login', login);
 
 // ======= Testing methods ================================
 
